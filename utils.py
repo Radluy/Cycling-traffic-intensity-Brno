@@ -19,6 +19,17 @@ def lines_match(line1, line2):
     pass
 
 
+# TODO: optimize to stop traversing dataset once a single match was found
+def assign_overlap(row, model_geom, current_gid, new_gid):
+    # find new overlap
+    if lines_overlap(row['geometry'], model_geom):
+        list_current = current_gid  # .to_list()
+        list_current.append(new_gid)
+        return list_current
+    else:
+        return current_gid
+
+
 def lines_overlap(line1, line2) -> bool:
     """
     Determine whether two lines fully overlap with acceptable deviation

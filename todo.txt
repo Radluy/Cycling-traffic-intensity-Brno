@@ -1,5 +1,36 @@
-spravit utils kniznicu:
-    geometry handling -
-        - line compare
-        - is point on line [najst spravny distance threshold]
-        - line overlap?
+*********************************************************************
+PREBRAT ORGANIZACNE VECI, FINALIZACIA ZADANIA, JAZYK PRACE
+********************************************************************* 
+
+Teoria:
+	1. SQL vs NoSQL
+		- wide column/document/keyval/temporal
+	2. ETL/ELT
+	3. Data Warehouse
+		- OLAP/OLTP
+		- multidimensional cube
+		- star/snowflake schema
+	4. cloud storage options
+		- AWS/google/microsoft
+	5. GIS
+		- arcgis/others
+		- openstreetmap 
+	6. Data analytics
+		- dashboards
+	7. Geography
+		- map projections
+		- possible filetypes
+	8. Location collection apps
+		- mobile gps
+		- smartwatch/cycling computer
+		
+
+Datasets analysis:
+	0. methodology - data collection
+	1. Size
+	2. periodicity/timestamps
+	3. filetype
+	4. geographic projection
+	5. used basemap
+	
+	
