@@ -21,6 +21,7 @@ def lines_match(line1, line2):
 
 def lines_overlap(line1, line2) -> bool:
     """
+    Determine whether two lines fully overlap with acceptable deviation
     :param line1: geo.MultiLineString: line that is checked for fully covering the second param line
     :param line2: geo.MultiLineString: line that is checked for being fully covered by the first param line
     :return Boolean whether the lines overlap
@@ -32,7 +33,9 @@ def lines_overlap(line1, line2) -> bool:
         lines2 = [line for line in line2.geoms]
 
     if lines1 and lines2:
-        return any([any([_lines_overlap(line, other_line) for line in lines1]) for other_line in lines2])
+        return any(
+            [any([_lines_overlap(line, other_line) for line in lines1]) for other_line in lines2]
+        )
     elif lines1 and not lines2:
         return any([_lines_overlap(line, line2) for line in lines1])
     elif lines2 and not lines1:
