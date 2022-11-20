@@ -132,6 +132,7 @@ dmypy.json
 
 # Datasets
 datasets
+counters_matching
 
 # IDE
 .idea
