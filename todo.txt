@@ -1,0 +1,5 @@
+spravit utils kniznicu:
+    geometry handling -
+        - line compare
+        - is point on line [najst spravny distance threshold]
+        - line overlap?
