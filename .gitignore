@@ -137,5 +137,7 @@ counters_matching
 # IDE
 .idea
 
-# CSVs
+# models
+*.geojson
+*.pkl
 *.csv
