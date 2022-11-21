@@ -5,26 +5,17 @@ import numpy as np
 # http://www.csgnetwork.com/gpsdistcalc.html
 # 4 digits ~ 23m roundup / 5 digits 2m roundup
 NDIGITS = 4
+ANGLE_OFFSET_LIMIT = 15
 
 
 def is_point_on_line(point, line):
     return line.distance(point) < 1e-3
 
 
-def lines_connect(line1, line2):
-    # TODO
-    pass
-
-
-def lines_match(line1, line2):
-    # TODO
-    pass
-
-
 # TODO: optimize to stop traversing dataset once a single match was found
 def assign_overlap(row, model_geom, current_gid, new_gid):
     # find new overlap
-    if lines_overlap(row['geometry'], model_geom):
+    if lines_overlap(row['geometry'], model_geom, round_digits=NDIGITS):
         list_current = current_gid  # .to_list()
         list_current.append(new_gid)
         return list_current
@@ -32,11 +23,11 @@ def assign_overlap(row, model_geom, current_gid, new_gid):
         return current_gid
 
 
-def lines_overlap(line1, line2) -> bool:
+def lines_overlap(line1, line2, round_digits) -> bool:
     """
     Determine whether two lines fully overlap with acceptable deviation
-    :param line1: geo.MultiLineString: line that is checked for fully covering the second param line
-    :param line2: geo.MultiLineString: line that is checked for being fully covered by the first param line
+    :param line1: shapely.MultiLineString: line that is checked for fully covering the second param line
+    :param line2: shapely.MultiLineString: line that is checked for being fully covered by the first param line
     :return Boolean whether the lines overlap
     """
     lines1, lines2 = None, None
@@ -47,60 +38,44 @@ def lines_overlap(line1, line2) -> bool:
 
     if lines1 and lines2:
         return any(
-            [any([_lines_overlap(line, other_line) for line in lines1]) for other_line in lines2]
+            [any([_lines_overlap(line, other_line, round_digits) for line in lines1]) for other_line in lines2]
         )
     elif lines1 and not lines2:
-        return any([_lines_overlap(line, line2) for line in lines1])
+        return any([_lines_overlap(line, line2, round_digits) for line in lines1])
     elif lines2 and not lines1:
-        return any([_lines_overlap(line1, other_line) for other_line in lines2])
+        return any([_lines_overlap(line1, other_line, round_digits) for other_line in lines2])
     else:
-        return _lines_overlap(line1, line2)
+        return _lines_overlap(line1, line2, round_digits)
 
 
-def _lines_overlap(line1, line2):
+def _lines_overlap(line1, line2, round_digits) -> bool:
+    """
+    Private helper method for rounding and comparing small LineString segments
+    :param line1: shapely.LineString
+    :param line2: shapely.LineString
+    :param round_digits: number of digits the coordinates should be rounded to
+    :return: bool: whether either line covers the other
+    """
     line1_coords = []
     line2_coords = []
     for point_i in range(2):
-        line1_coords.append((round(line1.coords[point_i][0], NDIGITS),
-                             round(line1.coords[point_i][1], NDIGITS)))
-        line2_coords.append((round(line2.coords[point_i][0], NDIGITS),
-                             round(line2.coords[point_i][1], NDIGITS)))
+        line1_coords.append((round(line1.coords[point_i][0], round_digits),
+                             round(line1.coords[point_i][1], round_digits)))
+        line2_coords.append((round(line2.coords[point_i][0], round_digits),
+                             round(line2.coords[point_i][1], round_digits)))
     line1 = geo.LineString(line1_coords)
     line2 = geo.LineString(line2_coords)
-    return line1.covers(line2)
+    return line1.covers(line2) or line2.covers(line1)
 
 
-"""# TAKEN FROM https://stackoverflow.com/questions/28260962/calculating-angles-between-line-segments-python-with-math-atan2
-def _dot_product(vector_a, vector_b):
-    return vector_a[0]*vector_b[0]+vector_a[1]*vector_b[1]
-
-
-def angle(line_1, line_2):
-    vector_a = [(line_1[0] - line_1[2]), (line_1[1] - line_1[3])]
-    vector_b = [(line_2[0] - line_2[2]), (line_2[1] - line_2[3])]
-    # Get dot prod
-    dot_product = _dot_product(vector_a, vector_b)
-    # Get magnitudes
-    magnitude_a = _dot_product(vector_a, vector_a) ** 0.5
-    magnitude_b = _dot_product(vector_b, vector_b) ** 0.5
-    # Get cosine value
-    cos = dot_product / magnitude_a / magnitude_b
-    # Get angle in radians and then convert to degrees
-    angle_radians = math.acos(dot_product / magnitude_b / magnitude_a)
-    # Basically doing angle <- angle mod 360
-    angle_degree = math.degrees(angle_radians) % 360
-
-    if angle_degree - 180 >= 0:
-        return 360 - angle_degree
-    else:
-        return angle_degree"""
-
-
-def angle_between(line_1, line_2):
+def angle_between(line_1, line_2) -> float:
     """
     Calculates the angle in degrees between two 2D lines
     taken from:
     https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python/13849249#13849249
+    :param line_1: shapely.MultiLineString
+    :param line_2: shapely.MultiLineString
+    :return: Float: angle between two lines
     """
     vector1 = [(line_1[0] - line_1[2]), (line_1[1] - line_1[3])]
     vector2 = [(line_2[0] - line_2[2]), (line_2[1] - line_2[3])]
@@ -111,15 +86,25 @@ def angle_between(line_1, line_2):
     return np.degrees(angle_radians) % 90
 
 
-# TODO: WIP
-def match_lines(line, other_lines):
-    # The snap() function in shapely.ops snaps the vertices in one geometry
-    # to the vertices in a second geometry with a given tolerance.
-    # from shapely.ops import snap
-    other_geoms = [multiline.geoms for multiline in other_lines]
-    for other_geom in other_geoms:
-        for linestring in other_geom:
-            print([a for a in linestring.coords])
+def match_lines(line, other_lines) -> geo.MultiLineString | None:
+    """
+    Find best match in list of other lines for line
+    Takes angles into an account
+    :param line: shapely.MultiLineString: base line for which the matches should be found
+    :param other_lines: list(shapely.MultiLineString): list of other lines with possible matches
+    :return: shapely.MultiLineString with best match from other_lines
+    """
+    candidate_lines = {}
+    for round_digits in range(7, 2, -1):
+        for index, other_line in enumerate(other_lines):
+            angle = angle_between(line.bounds, other_line.bounds)
+            if lines_overlap(line, other_line, round_digits) and angle < ANGLE_OFFSET_LIMIT:
+                candidate_lines[f"{index}"] = angle
+    if candidate_lines:
+        best_match = min(candidate_lines, key=candidate_lines.get)
+        return other_lines.iloc[int(best_match)]
+    else:
+        return None
 
 
 if __name__ == '__main__':
@@ -130,4 +115,7 @@ if __name__ == '__main__':
                                 ((16.4212775, 49.1736027), (16.4214545, 49.173536))))
     import pandas as pd
     model = pd.read_pickle('model_shrink_segmented.pkl')
-    match_lines(line, model[model['segment_id'] == 188]['geometry'])
+    biketowork = pd.read_pickle('biketowork_shrink_segmented.pkl')
+
+    for line_real in biketowork[biketowork['segment_id'] == 188]['geometry']:
+        match_lines(line_real, model[model['segment_id'] == 188]['geometry'])
