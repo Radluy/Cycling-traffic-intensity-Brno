@@ -65,7 +65,7 @@ def _lines_overlap(line1, line2, round_digits) -> bool:
                              round(line2.coords[point_i][1], round_digits)))
     line1 = geo.LineString(line1_coords)
     line2 = geo.LineString(line2_coords)
-    return line1.covers(line2) or line2.covers(line1)
+    return line1.intersects(line2) or line2.intersects(line1)
 
 
 def angle_between(line_1, line_2) -> float:
@@ -114,8 +114,17 @@ if __name__ == '__main__':
                                 ((16.4211327, 49.1736097), (16.4212775, 49.1736027)),
                                 ((16.4212775, 49.1736027), (16.4214545, 49.173536))))
     import pandas as pd
+    import geopandas as gpd
     model = pd.read_pickle('model_shrink_segmented.pkl')
     biketowork = pd.read_pickle('biketowork_shrink_segmented.pkl')
+    model_160 = model[model['segment_id'] == 160].copy()
 
-    for line_real in biketowork[biketowork['segment_id'] == 188]['geometry']:
-        match_lines(line_real, model[model['segment_id'] == 188]['geometry'])
+    matched_lines = []
+    for line_real in biketowork[biketowork['segment_id'] == 160]['geometry']:
+        new_match = match_lines(line_real, model_160['geometry'])
+        new_gid = biketowork[biketowork['geometry'] == new_match]['GID_ROAD']
+        matched_lines.append(new_gid)
+
+    model_160['GID_ROAD'] = pd.Series(matched_lines)
+    model_160.to_csv('model_160_matched_biketowork.csv')
+    gpd.GeoDataFrame(model_160).to_file('model_160_matched_biketowork.geojson', driver="GeoJSON")
