@@ -1,0 +1,194 @@
+"""
+Utils for geomtry handling using shapely. Capable of calculating line angles, overlaps,
+and finding best match for line in a different set.
+"""
+from shapely import geometry as shp
+import geopandas as gpd
+import numpy as np
+
+from segmentation_utils import generate_segments, assign_segments_to_dataset
+
+
+# http://www.csgnetwork.com/gpsdistcalc.html
+# 4 digits ~ 23m roundup / 5 digits 2m roundup
+NDIGITS = 5
+ANGLE_OFFSET_LIMIT = 15
+
+
+def is_point_on_line(point, line):
+    return line.distance(point) < 1e-3
+
+
+def assign_overlap(row, model_geom, current_gid, new_gid):
+    # find new overlap
+    if lines_overlap(row['geometry'], model_geom, round_digits=NDIGITS):
+        list_current = current_gid 
+        list_current.append(new_gid)
+        return list_current
+    else:
+        return current_gid
+
+
+def lines_overlap(line1: shp.MultiLineString | shp.LineString,
+                  line2: shp.MultiLineString | shp.LineString,
+                  round_digits: int) -> bool:
+    """Determine whether two lines fully overlap with acceptable deviation.
+    Shapely doesn't compute overlap for MultiLineStrings, so helper method is needed to
+    determine overlap between all pairs of partial lineStrings
+    Args:
+        line1 (shp.MultiLineString | shp.linestring): line checked for covering second line
+        line2 (shp.MultiLineString | shp.linestring): line checked for being covered by first line
+        round_digits (int): number of digits to round the coordinates - helps with divergency
+    Returns:
+        bool: True or False whether lines overlap"""
+    # lines may be linestring and multilinestrings
+    lines1, lines2 = None, None
+    if isinstance(line1, shp.MultiLineString):
+        lines1 = list(line1.geoms)
+    if isinstance(line2, shp.MultiLineString):
+        lines2 = list(line2.geoms)
+
+    # case multiline : multiline
+    if lines1 and lines2:
+        return any(
+            [any([_lines_overlap(line, other_line, round_digits) for line in lines1])
+             for other_line in lines2]
+        )
+    # case multiline : line
+    if lines1 and not lines2:
+        return any([_lines_overlap(line, line2, round_digits) for line in lines1])
+    # case line : multiline
+    if lines2 and not lines1:
+        return any([_lines_overlap(line1, other_line, round_digits) for other_line in lines2])
+    # case line : line
+    return _lines_overlap(line1, line2, round_digits)
+
+
+def _lines_overlap(line1: shp.LineString, line2: shp.LineString, round_digits: int) -> bool:
+    """Private helper method for rounding and comparing partial LineString because
+    Shapely doesn't compute overlap for MultiLineStrings. 
+    Args:
+        line1 (shp.linestring): line checked for covering second line
+        line2 (shp.linestring): line checked for being covered by first line
+        round_digits (int): number of digits to round the coordinates - helps with divergency
+    Returns:
+        bool: whether either line covers the other"""
+    line1_coords = []
+    line2_coords = []
+    # round according to round_digits param 
+    # bigger roundup means the lines are more likely to meet, eliminates offset
+    for point_i in range(2):
+        line1_coords.append((round(line1.coords[point_i][0], round_digits),
+                             round(line1.coords[point_i][1], round_digits)))
+        line2_coords.append((round(line2.coords[point_i][0], round_digits),
+                             round(line2.coords[point_i][1], round_digits)))
+    line1 = shp.LineString(line1_coords)
+    line2 = shp.LineString(line2_coords)
+    return line1.intersects(line2) or line2.intersects(line1)
+
+
+def angle_between(line_1: shp.MultiLineString, line_2: shp.MultiLineString) -> float:
+    """Calculates angle in degrees between two 2D lines
+    taken from:
+    https://stackoverflow.com/questions/2827393/
+    Args:
+        line_1 (shp.MultiLineString): first line of the angle
+        line_2 (shp.MultiLineString): second line of the angle
+    Returns:
+        float: angle between two lines
+    """
+    vector1 = [(line_1[0] - line_1[2]), (line_1[1] - line_1[3])]
+    vector2 = [(line_2[0] - line_2[2]), (line_2[1] - line_2[3])]
+    v1_unit = vector1 / np.linalg.norm(vector1)
+    v2_unit = vector2 / np.linalg.norm(vector2)
+    angle_radians = np.arccos(np.clip(np.dot(v1_unit, v2_unit), -1.0, 1.0))
+    # modulo 90 to ignore direction of vector
+    return np.degrees(angle_radians) % 90
+
+
+def match_line_to_set(line: shp.MultiLineString,
+                      other_lines: gpd.GeoSeries) -> shp.MultiLineString | None:
+    """Finds best match in list of other lines for line
+    Args:
+        line (shp.MultiLineString): base line for which the matches should be found
+        other_lines (gpd.GeoSeries): series of other lines with possible matches
+    Returns:
+        shp.MultiLineString | None: best match from other_lines or None if nothing was found
+    """
+    candidate_lines = {}
+    for round_digits in range(7, 2, -1):  # every digit down means more benevolent matching
+        for index, other_line in enumerate(other_lines):
+            angle = angle_between(line.bounds, other_line.bounds)
+            if lines_overlap(line, other_line, round_digits) and angle < ANGLE_OFFSET_LIMIT:
+                candidate_lines[f"{index}"] = angle
+    if candidate_lines:
+        best_match = min(candidate_lines, key=candidate_lines.get)
+        return other_lines.iloc[int(best_match)]
+    return None
+
+
+def match_lines_by_bbox_overlap(line: shp.MultiLineString,
+                                other_lines: gpd.GeoSeries) -> shp.MultiLineString | None:
+    """Finds best match in list of other lines for line based on overlap of bounding boxes
+    Args:
+        line (shp.MultiLineString): base line for which the matches should be found
+        other_lines (gpd.GeoSeries): series of other lines with possible matches
+    Returns:
+        shp.MultiLineString | None: best match from other_lines or None if nothing was found
+    """
+    max_accepted_angle = ANGLE_OFFSET_LIMIT
+    round_digits = NDIGITS
+    best_match = (0, 0, 0)  # overlap[0-1], angle[degrees], index of the line
+    while best_match == (0, 0, 0):
+        max_accepted_angle = max_accepted_angle + 5
+        # allow bigger offset if nothing was found up to 45 degrees and try one last iteration
+        if max_accepted_angle >= 45:
+            round_digits = round_digits + 1
+        # iterate all lines from other set and save best match
+        for index, other_line in enumerate(other_lines):
+            angle = angle_between(line.bounds, other_line.bounds)
+            polygon = shp.box(*[round(coord, round_digits) for coord in line.bounds])
+            other_polygon = shp.box(*[round(coord, round_digits) for coord in other_line.bounds])
+            try:  # calculate overlap of bounding boxes of streets in <0-1> interval
+                bbox_overlap = polygon.intersection(other_polygon).area /         \
+                    polygon.union(other_polygon).area
+            except ZeroDivisionError:  # union can be empty, skip the street
+                continue
+            # progressively bigger allowed angle and highest overlap
+            if angle < max_accepted_angle and bbox_overlap > best_match[0]:
+                best_match = (bbox_overlap, angle, index)
+        # if last iteration didnt succeed, return no match
+        if max_accepted_angle >= 45 and best_match == (0, 0, 0):
+            return None
+
+    return other_lines.iloc[int(best_match[2])]
+
+
+if __name__ == '__main__':
+    example_line = shp.MultiLineString((((16.4199381, 49.1733522), (16.4203671, 49.1733876)),
+                                        ((16.4203671, 49.1733876), (16.4209684, 49.1735831)),
+                                        ((16.4209684, 49.1735831), (16.4211327, 49.1736097)),
+                                        ((16.4211327, 49.1736097), (16.4212775, 49.1736027)),
+                                        ((16.4212775, 49.1736027), (16.4214545, 49.173536))))
+    import pandas as pd
+    basemap = pd.read_pickle('basemap.pkl')
+    segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
+    basemap = assign_segments_to_dataset(basemap, segment_matrix, 'id')
+    biketowork = gpd.read_file('datasets/do_prace_na_kole.geojson')
+    biketowork = assign_segments_to_dataset(biketowork, segment_matrix, 'GID_ROAD')
+
+    # show example on one segment
+    SEGMENT_ID = 400
+    basemap_segm = basemap[basemap['segment_id'] == SEGMENT_ID]
+    biketowork_segm = biketowork[biketowork['segment_id'] == SEGMENT_ID]
+    matched_lines = []
+    for basemap_line in basemap_segm['geometry']:
+        #new_match = match_line_to_set(basemap_line, biketowork_segm['geometry'])
+        new_match = match_lines_by_bbox_overlap(basemap_line, biketowork_segm['geometry'])
+        if new_match:
+            new_gid = biketowork_segm[biketowork_segm['geometry'] == new_match]['GID_ROAD'].array[0]
+        else:
+            new_gid = np.NaN
+        matched_lines.append(new_gid)
+
+    basemap_segm['GID_ROAD'] = matched_lines
