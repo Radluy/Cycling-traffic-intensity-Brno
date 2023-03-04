@@ -3,9 +3,9 @@ Module loads basemap from OpenStreetMap network and matches other
 networks and locations to it. The final model is a map of IDs to all 
 corresponding dataset from the Brno Cycling traffic intensity study
 """
-import logging
 import os
 from typing import Tuple, List
+os.environ['USE_PYGEOS'] = '0'
 
 import geopandas as gpd
 import pandas as pd
@@ -14,6 +14,7 @@ from numpy import NaN
 
 from geometry_utils import match_lines_by_bbox_overlap
 from segmentation_utils import generate_segments, assign_segments_to_dataset
+
 
 DEFAULT_BBOX = (16.4855, 49.1538, 16.7550, 49.2507)
 
@@ -36,12 +37,14 @@ def load_osm_basemap(filepath: str,
     return basemap_df
 
 
-def match_counters_to_osm(basemap: gpd.GeoDataFrame, counters_filepath: str,
+def match_counters_to_osm(basemap: gpd.GeoDataFrame,
+                          counters_filepath: str,
                           id_column: str) -> gpd.GeoDataFrame:
     """Matches locations of counter units to OSM basemap. Uses 'LocationId' column of counters set
     Args:
         basemap (gpd.GeoDataFrame): osm basemap of Brno
         counters_path (str): path to counters GEOJSON dataset with unit locations
+        id_column (str): exact name of column with unique IDs of the dataset
     Returns:
         gpd.GeoDataFrame: original basemap with new column of matched counters"""
     counters_df = gpd.read_file(counters_filepath)
@@ -69,8 +72,7 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
                                 filepath: str,
                                 id_column: str,
                                 segment_matrix: List[Tuple[float, float, float, float]],
-                                segment_ids: List[int] | None = None) \
-                                -> gpd.GeoDataFrame:
+                                segment_ids: List[int] | None = None) -> gpd.GeoDataFrame:
     """Matches streets from any network to osm basemap, 
     using algorithm based on street bounding box overlap and angle.
     Args:
@@ -85,9 +87,8 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
     final_model = gpd.GeoDataFrame()
     foreign_network = gpd.read_file(filepath)
     foreign_network = assign_segments_to_dataset(foreign_network, segment_matrix, id_column)
-    segment_ids = range(len(segment_matrix)**2) if not segment_ids else segment_ids
+    segment_ids = range(len(segment_matrix)) if not segment_ids else segment_ids
     for segment_id in segment_ids:
-        logging.log(level=1, msg=f"processing segment: {segment_id}")
         basemap_segm = basemap[basemap['segment_id'] == segment_id].copy()
         foreign_segm = foreign_network[foreign_network['segment_id'] == segment_id].copy()
 
@@ -109,19 +110,16 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
 if __name__ == '__main__':
     # read osm street network
     if not os.path.exists('basemap.pkl'):
-        logging.log(level=1, msg="Generating basemap from OSM dataset")
         basemap = load_osm_basemap("datasets/czech_republic-latest.osm.pbf")
         print(basemap.head())
         basemap.to_pickle("basemap.pkl")
     else:
         basemap = pd.read_pickle("basemap.pkl")
     # match counter unit locations to basemap
-    logging.log(level=1, msg="Matching counter unit locations to basemap")
     basemap = match_counters_to_osm(basemap, 'datasets/cyklodetektory.geojson', 'LocationId')
     print(basemap.head())
 
     # match biketowork street network to basemap
-    logging.log(level=1, msg="Matching BikeToWork street network to basemap")
     segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
     basemap = assign_segments_to_dataset(basemap, segment_matrix, 'id')
     model = match_street_network_to_osm(basemap,

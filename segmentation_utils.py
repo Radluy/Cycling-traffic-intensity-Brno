@@ -1,8 +1,10 @@
 """Utils responsible for segmenting window of a basemap to speed up processing and comparing"""
-from itertools import pairwise
+import os
 from typing import Tuple, List
+from itertools import pairwise
+os.environ['USE_PYGEOS'] = '0'
+
 import geopandas as gpd
-import pandas as pd
 
 
 MIN_X = 0
@@ -78,5 +80,5 @@ def assign_segments_to_dataset(dataset: gpd.GeoDataFrame,
                 break
 
     # append dataset with matched segment IDs
-    street_to_segment_df = pd.DataFrame({ id_column: street_ids, 'segment_id': segment_ids})
+    street_to_segment_df = gpd.GeoDataFrame({id_column: street_ids, 'segment_id': segment_ids})
     return dataset.merge(street_to_segment_df, on=id_column)

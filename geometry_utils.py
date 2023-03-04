@@ -2,13 +2,19 @@
 Utils for geomtry handling using shapely. Capable of calculating line angles, overlaps,
 and finding best match for line in a different set.
 """
-from shapely import geometry as shp
+import os
+import warnings
+os.environ['USE_PYGEOS'] = '0'
+
 import geopandas as gpd
 import numpy as np
+from shapely import geometry as shp
 
 from segmentation_utils import generate_segments, assign_segments_to_dataset
 
 
+# older GEOS warns for simple intersections, ignore
+warnings.filterwarnings("ignore", message="invalid value encountered in intersection")
 # http://www.csgnetwork.com/gpsdistcalc.html
 # 4 digits ~ 23m roundup / 5 digits 2m roundup
 NDIGITS = 5
@@ -95,8 +101,7 @@ def angle_between(line_1: shp.MultiLineString, line_2: shp.MultiLineString) -> f
         line_1 (shp.MultiLineString): first line of the angle
         line_2 (shp.MultiLineString): second line of the angle
     Returns:
-        float: angle between two lines
-    """
+        float: angle between two lines"""
     vector1 = [(line_1[0] - line_1[2]), (line_1[1] - line_1[3])]
     vector2 = [(line_2[0] - line_2[2]), (line_2[1] - line_2[3])]
     v1_unit = vector1 / np.linalg.norm(vector1)
@@ -113,8 +118,7 @@ def match_line_to_set(line: shp.MultiLineString,
         line (shp.MultiLineString): base line for which the matches should be found
         other_lines (gpd.GeoSeries): series of other lines with possible matches
     Returns:
-        shp.MultiLineString | None: best match from other_lines or None if nothing was found
-    """
+        shp.MultiLineString | None: best match from other_lines or None if nothing was found"""
     candidate_lines = {}
     for round_digits in range(7, 2, -1):  # every digit down means more benevolent matching
         for index, other_line in enumerate(other_lines):
@@ -134,8 +138,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
         line (shp.MultiLineString): base line for which the matches should be found
         other_lines (gpd.GeoSeries): series of other lines with possible matches
     Returns:
-        shp.MultiLineString | None: best match from other_lines or None if nothing was found
-    """
+        shp.MultiLineString | None: best match from other_lines or None if nothing was found"""
     max_accepted_angle = ANGLE_OFFSET_LIMIT
     round_digits = NDIGITS
     best_match = (0, 0, 0)  # overlap[0-1], angle[degrees], index of the line
@@ -165,11 +168,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
 
 
 if __name__ == '__main__':
-    example_line = shp.MultiLineString((((16.4199381, 49.1733522), (16.4203671, 49.1733876)),
-                                        ((16.4203671, 49.1733876), (16.4209684, 49.1735831)),
-                                        ((16.4209684, 49.1735831), (16.4211327, 49.1736097)),
-                                        ((16.4211327, 49.1736097), (16.4212775, 49.1736027)),
-                                        ((16.4212775, 49.1736027), (16.4214545, 49.173536))))
+    # example usage of algorithm on one segment of OSM basemap and BikeToWork dataset
     import pandas as pd
     basemap = pd.read_pickle('basemap.pkl')
     segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
@@ -177,13 +176,12 @@ if __name__ == '__main__':
     biketowork = gpd.read_file('datasets/do_prace_na_kole.geojson')
     biketowork = assign_segments_to_dataset(biketowork, segment_matrix, 'GID_ROAD')
 
-    # show example on one segment
     SEGMENT_ID = 400
     basemap_segm = basemap[basemap['segment_id'] == SEGMENT_ID]
     biketowork_segm = biketowork[biketowork['segment_id'] == SEGMENT_ID]
     matched_lines = []
     for basemap_line in basemap_segm['geometry']:
-        #new_match = match_line_to_set(basemap_line, biketowork_segm['geometry'])
+        # new_match = match_line_to_set(basemap_line, biketowork_segm['geometry'])
         new_match = match_lines_by_bbox_overlap(basemap_line, biketowork_segm['geometry'])
         if new_match:
             new_gid = biketowork_segm[biketowork_segm['geometry'] == new_match]['GID_ROAD'].array[0]
