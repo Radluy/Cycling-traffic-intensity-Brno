@@ -81,4 +81,4 @@ def assign_segments_to_dataset(dataset: gpd.GeoDataFrame,
 
     # append dataset with matched segment IDs
     street_to_segment_df = gpd.GeoDataFrame({id_column: street_ids, 'segment_id': segment_ids})
-    return dataset.merge(street_to_segment_df, on=id_column)
+    return gpd.GeoDataFrame(dataset.merge(street_to_segment_df, on=id_column))
