@@ -37,34 +37,35 @@ def load_osm_basemap(filepath: str,
     return basemap_df
 
 
-def match_counters_to_osm(basemap: gpd.GeoDataFrame,
-                          counters_filepath: str,
-                          id_column: str) -> gpd.GeoDataFrame:
-    """Matches locations of counter units to OSM basemap.
+def match_points_to_osm(basemap: gpd.GeoDataFrame,
+                          filepath: str,
+                          id_column: str,
+                          new_id_column: str) -> gpd.GeoDataFrame:
+    """Matches locations of any points of interest to OSM basemap. Geometry must be Points.
     Args:
         basemap (gpd.GeoDataFrame): osm basemap of Brno
-        counters_path (str): path to counters GEOJSON dataset with unit locations
+        counters_path (str): path to any points dataset with coordinates
         id_column (str): exact name of column with unique IDs of the dataset
     Returns:
         gpd.GeoDataFrame: original basemap with new column of matched counters"""
-    counters_df = gpd.read_file(counters_filepath)
-    unique_counters = counters_df.drop_duplicates(subset=id_column)
-    counter_ids = unique_counters[id_column].to_list()
-    counters_geometries = unique_counters['geometry'].to_list()
+    points_df = gpd.read_file(filepath)
+    unique_points = points_df.drop_duplicates(subset=id_column)
+    counter_ids = unique_points[id_column].to_list()
+    counters_geometries = unique_points['geometry'].to_list()
 
-    # load distances between streets and counter units
+    # load distances between streets and points
     distances_df = pd.DataFrame()
     for i, item in enumerate(counters_geometries):
         distances_df[f'distance{i}'] = basemap['geometry'].apply(lambda x: x.distance(item))
 
-    # create map of [osm street id : unit id] by minimal distance between them
-    unit_way_map = {}
-    for i in range(len(unique_counters)):
+    # create map of [osm street id : point id] by minimal distance between them
+    point_way_map = {}
+    for i in range(len(unique_points)):
         min_dist = basemap[distances_df[f"distance{i}"]==distances_df[f"distance{i}"].min()]
-        unit_way_map[min_dist['id'].unique()[0]] = counter_ids[i]
+        point_way_map[min_dist['id'].unique()[0]] = counter_ids[i]
 
-    # append unit ids to counters_df
-    basemap['counter_id'] = basemap['id'].map(unit_way_map)
+    # append point ids to basemap
+    basemap[new_id_column] = basemap['id'].map(point_way_map)
     return basemap
 
 
@@ -124,7 +125,10 @@ if __name__ == '__main__':
     else:
         model = pd.read_pickle("basemap.pkl")  
     # match counter unit locations to basemap
-    model = match_counters_to_osm(model, 'datasets/cyklodetektory.geojson', 'LocationId')
+    model = match_points_to_osm(model, 
+                                'datasets/cyklodetektory.geojson', 
+                                'LocationId',
+                                'counters_id')
     print(model.head())
 
     # match biketowork street network to basemap
