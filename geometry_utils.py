@@ -135,7 +135,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
                                 other_lines: gpd.GeoSeries) -> shp.MultiLineString | None:
     """Finds best match in list of other lines for line based on overlap of bounding boxes
     Args:
-        line (shp.MultiLineString): base line for which the matches should be found
+        line (shp.MultiLineString): baseline for which the matches should be found
         other_lines (gpd.GeoSeries): series of other lines with possible matches
     Returns:
         shp.MultiLineString | None: best match from other_lines or None if nothing was found"""
@@ -160,7 +160,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
             # progressively bigger allowed angle and highest overlap
             if angle < max_accepted_angle and bbox_overlap > best_match[0]:
                 best_match = (bbox_overlap, angle, index)
-        # if last iteration didnt succeed, return no match
+        # if last iteration didn't succeed, return no match
         if max_accepted_angle >= 45 and best_match == (0, 0, 0):
             return None
 

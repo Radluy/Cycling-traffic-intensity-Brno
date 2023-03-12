@@ -17,6 +17,7 @@ from segmentation_utils import generate_segments, assign_segments_to_dataset
 
 
 DEFAULT_BBOX = (16.4855, 49.1538, 16.7550, 49.2507)
+DEFAULT_NUM_SEGMENTS = 32
 
 
 def load_osm_basemap(filepath: str,
@@ -90,7 +91,10 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
     final_model = gpd.GeoDataFrame()
     # prepare dataset to be processed
     foreign_network = gpd.read_file(filepath)
-    foreign_network = foreign_network.rename(columns={id_column: new_id_column})
+    if new_id_column:
+        foreign_network = foreign_network.rename(columns={id_column: new_id_column})
+    else:
+        new_id_column = id_column
     foreign_network = foreign_network.drop_duplicates(subset=new_id_column)
     foreign_network = foreign_network[[new_id_column, 'geometry']]
     foreign_network = assign_segments_to_dataset(foreign_network, segment_matrix, new_id_column)
@@ -103,7 +107,7 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
         matched_lines = []
         for basemap_line in basemap_segm['geometry']:
             new_match = match_lines_by_bbox_overlap(basemap_line, foreign_segm['geometry'])
-            if new_match:  # query row by id found by the algorithm
+            if new_match:  # query street id by geometry found by the algorithm
                 new_match = foreign_segm[foreign_segm['geometry']
                                          == new_match][new_id_column].array[0]
             else:  # no matches found, NaN to match column length
@@ -112,6 +116,51 @@ def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
 
         basemap_segm[new_id_column] = matched_lines
         final_model = pd.concat([final_model, basemap_segm])
+
+    return final_model
+
+
+def update_street_network(model: gpd.GeoDataFrame,
+                          filepath: str,
+                          original_id_column: str,
+                          segment_matrix: List[Tuple[float, float, float, float]],
+                          model_id_column: str) -> gpd.GeoDataFrame:
+    """Updates ids from matched foreign network with new version of the dataset
+    Args:
+        model (gpd.GeoDataFrame): basemap from OSM with already assigned segments 
+        and column with ids matched from foregin network
+        filepath (str): path to dataset with different street network basemap, must have geometry
+        original_id_column (str): exact name of column with unique IDs of the dataset
+        segment_matrix (List[Tuple[float, float, float, float]]): list of segments, must be same 
+        as segments assigned to model
+        model_id_column (str): name of column with datasets ids in model 
+        (could be different after rename)
+    Returns:
+        gpd.GeoDataFrame: model with updated column with foreign network streets ids"""
+    foreign_network = gpd.read_file(filepath)
+    foreign_network = foreign_network.rename(columns={original_id_column: model_id_column})
+    foreign_network = foreign_network.drop_duplicates(subset=model_id_column)
+    foreign_network = foreign_network[[model_id_column, 'geometry']]
+
+    # load not already assigned streets from foreign network
+    new_streets = foreign_network[
+        ~foreign_network[model_id_column].isin(model[model_id_column])]
+    new_streets = assign_segments_to_dataset(new_streets, segment_matrix, model_id_column)
+
+    final_model = model.copy()
+    segment_ids = range(len(segment_matrix))
+    for segment_id in segment_ids:
+        model_segm = model[model['segment_id'] == segment_id].copy()
+        new_streets_segm = new_streets[new_streets['segment_id'] == segment_id].copy()
+
+        # match new line from foreign to segment of basemodel (other way around)
+        for new_line in new_streets_segm['geometry']:
+            new_match = match_lines_by_bbox_overlap(new_line, model_segm['geometry'])
+            if new_match:  # query street ID by geometry found by the algorithm
+                new_line = new_streets_segm[new_streets_segm['geometry']
+                                            == new_line][model_id_column].array[0]
+                # update found match in model
+                final_model.loc[final_model['geometry'] == new_match, model_id_column] = new_line
 
     return final_model
 
@@ -132,7 +181,7 @@ if __name__ == '__main__':
     print(model.head())
 
     # match biketowork street network to basemap
-    segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
+    segment_matrix = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
     model = assign_segments_to_dataset(model, segment_matrix, 'id')
     model = match_street_network_to_osm(model,
                                         "datasets/do_prace_na_kole.geojson",
@@ -150,4 +199,3 @@ if __name__ == '__main__':
     print(model.head())
 
     gpd.GeoDataFrame(model).to_file('full_model.geojson', driver="GeoJSON")
-    
