@@ -165,6 +165,45 @@ def update_street_network(model: gpd.GeoDataFrame,
     return final_model
 
 
+def update_point_system(model: gpd.GeoDataFrame,
+                        filepath: str,
+                        original_id_column: str,
+                        model_id_column: str) -> gpd.GeoDataFrame:
+    """Update ids in model from newer version of point system dataset
+    Args:
+        model (gpd.GeoDataFrame): basemap from OSM with existing column with point ids 
+        filepath (str): path to any points dataset with coordinates
+        original_id_column (str): exact name of column with unique IDs of the dataset
+        model_id_column (str): name of column with datasets ids in model 
+    Returns:
+        gpd.GeoDataFrame: model with updated column with point system ids
+    """
+    points_df = gpd.read_file(filepath)
+    points_df = points_df.rename(columns={original_id_column: model_id_column})
+    unique_points = points_df.drop_duplicates(subset=model_id_column)
+    # load not already assigned points from dataset
+    new_points = unique_points[
+        ~unique_points[model_id_column].isin(model[model_id_column])]
+    counter_ids = new_points[model_id_column].to_list()
+    counters_geometries = new_points['geometry'].to_list()
+
+    # load distances between streets and points
+    distances_df = pd.DataFrame()
+    for i, item in enumerate(counters_geometries):
+        distances_df[f'distance{i}'] = model['geometry'].apply(lambda x: x.distance(item))
+
+    # create map of {osm street id : point id} by minimal distance between them
+    point_way_map = {}
+    for i in range(len(new_points)):
+        min_dist = model[distances_df[f"distance{i}"]==distances_df[f"distance{i}"].min()]
+        point_way_map[min_dist['id'].unique()[0]] = counter_ids[i]
+
+    # assign newly found point matches
+    for model_id, point_id in point_way_map.items():
+        model.loc[model['id'] == model_id, model_id_column] = point_id
+    return model
+
+
 if __name__ == '__main__':
     # read osm street network
     if not os.path.exists('basemap.pkl'):
@@ -172,9 +211,9 @@ if __name__ == '__main__':
         print(model.head())
         model.to_pickle("basemap.pkl")
     else:
-        model = pd.read_pickle("basemap.pkl")  
+        model = pd.read_pickle("basemap.pkl")
     # match counter unit locations to basemap
-    model = match_points_to_osm(model, 
+    model = match_points_to_osm(model,
                                 'datasets/cyklodetektory.geojson', 
                                 'LocationId',
                                 'counters_id')
