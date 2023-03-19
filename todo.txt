@@ -1,3 +1,4 @@
-append mode - periodic update if new streets emerge
+arcGIS popup pagination -> not possible in Arcade language
+time slider -> must be enabled in layer definition (owned by MMB)
 	
 	
