@@ -29,7 +29,7 @@ def query_arcgis_layer(base_url: str, savepath: str | None = None, out_fields: s
         with open(savepath, 'w') as f:
             f.write(response.to_geojson)
     else:
-        print(response)
+        return response
 
 
 if __name__ == '__main__':
@@ -48,5 +48,11 @@ if __name__ == '__main__':
                        'datasets/arcgis_biketowork.geojson', 
                        out_fields='GID_ROAD')
 
-    #query_arcgis_layer(cparser['urls']['biketowork'], 
-    # result_type='df',custom_where='GID_ROAD=3515.0')
+    # examples
+    query_arcgis_layer(cparser['urls']['biketowork'],
+                       result_type='df',
+                       custom_where='GID_ROAD=3515.0')
+
+    x = query_arcgis_layer(cparser['urls']['counters'],
+                           custom_where="datum > DATE '2023-03-22'",
+                           result_type='df').sdf

@@ -207,14 +207,14 @@ def update_point_system(model: gpd.GeoDataFrame,
 if __name__ == '__main__':
     # read osm street network
     if not os.path.exists('basemap.pkl'):
-        model = load_osm_basemap("datasets/czech_republic-latest.osm.pbf")
+        model = load_osm_basemap("../datasets/czech_republic-latest.osm.pbf")
         print(model.head())
         model.to_pickle("basemap.pkl")
     else:
         model = pd.read_pickle("basemap.pkl")
     # match counter unit locations to basemap
     model = match_points_to_osm(model,
-                                'datasets/cyklodetektory.geojson', 
+                                '../datasets/cyklodetektory.geojson',
                                 'LocationId',
                                 'counters_id')
     print(model.head())
@@ -223,7 +223,7 @@ if __name__ == '__main__':
     segment_matrix = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
     model = assign_segments_to_dataset(model, segment_matrix, 'id')
     model = match_street_network_to_osm(model,
-                                        "datasets/do_prace_na_kole.geojson",
+                                        "../datasets/do_prace_na_kole.geojson",
                                         "GID_ROAD",
                                         segment_matrix,
                                         'biketowork_id')
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
     # match bkom street network to basemap
     model = match_street_network_to_osm(model,
-                                        "datasets/bkom_scitanie.geojson",
+                                        "../datasets/bkom_scitanie.geojson",
                                         "id",
                                         segment_matrix,
                                         'city_census_id')

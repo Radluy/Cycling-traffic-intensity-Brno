@@ -1,5 +1,5 @@
 """
-Utils for geomtry handling using shapely. Capable of calculating line angles, overlaps,
+Utils for geometry handling using shapely. Capable of calculating line angles, overlaps,
 and finding best match for line in a different set.
 """
 import os
@@ -19,20 +19,6 @@ warnings.filterwarnings("ignore", message="invalid value encountered in intersec
 # 4 digits ~ 23m roundup / 5 digits 2m roundup
 NDIGITS = 5
 ANGLE_OFFSET_LIMIT = 15
-
-
-def is_point_on_line(point, line):
-    return line.distance(point) < 1e-3
-
-
-def assign_overlap(row, model_geom, current_gid, new_gid):
-    # find new overlap
-    if lines_overlap(row['geometry'], model_geom, round_digits=NDIGITS):
-        list_current = current_gid 
-        list_current.append(new_gid)
-        return list_current
-    else:
-        return current_gid
 
 
 def lines_overlap(line1: shp.MultiLineString | shp.LineString,
@@ -102,6 +88,7 @@ def angle_between(line_1: shp.MultiLineString, line_2: shp.MultiLineString) -> f
         line_2 (shp.MultiLineString): second line of the angle
     Returns:
         float: angle between two lines"""
+    line_1, line_2 = line_1.bounds, line_2.bounds
     vector1 = [(line_1[0] - line_1[2]), (line_1[1] - line_1[3])]
     vector2 = [(line_2[0] - line_2[2]), (line_2[1] - line_2[3])]
     v1_unit = vector1 / np.linalg.norm(vector1)
@@ -122,7 +109,7 @@ def match_line_to_set(line: shp.MultiLineString,
     candidate_lines = {}
     for round_digits in range(7, 2, -1):  # every digit down means more benevolent matching
         for index, other_line in enumerate(other_lines):
-            angle = angle_between(line.bounds, other_line.bounds)
+            angle = angle_between(line, other_line)
             if lines_overlap(line, other_line, round_digits) and angle < ANGLE_OFFSET_LIMIT:
                 candidate_lines[f"{index}"] = angle
     if candidate_lines:
@@ -149,7 +136,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
             round_digits = round_digits + 1
         # iterate all lines from other set and save best match
         for index, other_line in enumerate(other_lines):
-            angle = angle_between(line.bounds, other_line.bounds)
+            angle = angle_between(line, other_line)
             polygon = shp.box(*[round(coord, round_digits) for coord in line.bounds])
             other_polygon = shp.box(*[round(coord, round_digits) for coord in other_line.bounds])
             try:  # calculate overlap of bounding boxes of streets in <0-1> interval
@@ -173,7 +160,7 @@ if __name__ == '__main__':
     basemap = pd.read_pickle('basemap.pkl')
     segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
     basemap = assign_segments_to_dataset(basemap, segment_matrix, 'id')
-    biketowork = gpd.read_file('datasets/do_prace_na_kole.geojson')
+    biketowork = gpd.read_file('../datasets/do_prace_na_kole.geojson')
     biketowork = assign_segments_to_dataset(biketowork, segment_matrix, 'GID_ROAD')
 
     SEGMENT_ID = 400
