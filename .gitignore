@@ -142,3 +142,7 @@ counters_matching
 *.geojson
 *.pkl
 *.csv
+
+# report outputs
+report.html 
+strava_plot.png

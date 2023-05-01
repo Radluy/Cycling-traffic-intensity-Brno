@@ -18,7 +18,7 @@ def generate_segments(bounding_box: Tuple[float, float, float, float],
     """Split window defined by limits into equally sized segments.
     Args:
         bounding_box (Tuple[float, float, float, float]): [minx, miny, maxx, maxy] of basemap
-        num_of_segments (int): number of segments in 1 row and 1 column, final num is 2^x
+        num_of_segments (int): number of segments in 1 row and 1 column, final num is x^2
     Returns:
         List[Tuple[float, float, float, float]]: List of segments, 1 segment defined by 4 limits"""
     # calculate X coordinates

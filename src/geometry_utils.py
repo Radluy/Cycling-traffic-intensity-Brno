@@ -19,6 +19,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in intersec
 # 4 digits ~ 23m roundup / 5 digits 2m roundup
 NDIGITS = 5
 ANGLE_OFFSET_LIMIT = 15
+ANGLE_STEP = 5
 
 
 def lines_overlap(line1: shp.MultiLineString | shp.LineString,
@@ -76,13 +77,13 @@ def _lines_overlap(line1: shp.LineString, line2: shp.LineString, round_digits: i
                              round(line2.coords[point_i][1], round_digits)))
     line1 = shp.LineString(line1_coords)
     line2 = shp.LineString(line2_coords)
-    return line1.intersects(line2) or line2.intersects(line1)
+    return line1.overlaps(line2) or line2.overlaps(line1)
 
 
 def angle_between(line_1: shp.MultiLineString, line_2: shp.MultiLineString) -> float:
     """Calculates angle in degrees between two 2D lines
     taken from:
-    https://stackoverflow.com/questions/2827393/
+    https://stackoverflow.com/a/13849249/71522
     Args:
         line_1 (shp.MultiLineString): first line of the angle
         line_2 (shp.MultiLineString): second line of the angle
@@ -130,10 +131,10 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
     round_digits = NDIGITS
     best_match = (0, 0, 0)  # overlap[0-1], angle[degrees], index of the line
     while best_match == (0, 0, 0):
-        max_accepted_angle = max_accepted_angle + 5
+        max_accepted_angle = max_accepted_angle + ANGLE_STEP
         # allow bigger offset if nothing was found up to 45 degrees and try one last iteration
         if max_accepted_angle >= 45:
-            round_digits = round_digits + 1
+            round_digits = round_digits - 1
         # iterate all lines from other set and save best match
         for index, other_line in enumerate(other_lines):
             angle = angle_between(line, other_line)
