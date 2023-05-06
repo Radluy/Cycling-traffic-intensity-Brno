@@ -1,11 +1,10 @@
 import requests
 import pandas as pd
+import matplotlib.dates as mdates
 from configparser import ConfigParser
 from arcgis.features import FeatureLayer
-from geopandas import GeoDataFrame
 from matplotlib import pyplot as plt
-import matplotlib.dates as mdates
-import seaborn as sns
+from seaborn import lineplot
 
 
 cparser = ConfigParser()
@@ -71,10 +70,11 @@ def get_counters_data(location_id: int, date_start: str, date_end: str):
     return gdf
 
 
-def get_strava_data(osm_id: int, date_start: str, date_end: str) -> pd.DataFrame:
+def get_strava_data(osm_id: int, date_start: str, date_end: str, csv_path: str) -> pd.DataFrame:
     """Query strava dataset from file as a dataframe based on OSM ID and time interval
-       datetime parameters in format 'YYYY-MM-DD'"""
-    df = pd.read_csv('../datasets/strava_daily_2022_may_aug.csv')
+       datetime parameters in format 'YYYY-MM-DD', 
+       dataset must be on daily granularity and contain the specified time frame"""
+    df = pd.read_csv(csv_path)
     df['date'] = pd.to_datetime(df['date'])
     df = df[df['osm_reference_id'] == osm_id] # 48578321
     df = df[df['date'].dt.strftime('%Y-%m-%d') >= date_start]
@@ -84,13 +84,14 @@ def get_strava_data(osm_id: int, date_start: str, date_end: str) -> pd.DataFrame
     return df
 
 
-def generate_strava_report(osm_id: int, date_start: str, date_end: str):
+def generate_strava_report(osm_id: int, date_start: str, date_end: str, csv_path: str):
     """Generated simple html digesting strava data parsed by parameters
-       datetime parameters in format 'YYYY-MM-DD'"""
-    df = get_strava_data(osm_id, date_start, date_end)
+       datetime parameters in format 'YYYY-MM-DD'
+       dataset must be on daily granularity and contain the specified time frame"""
+    df = get_strava_data(osm_id, date_start, date_end, csv_path)
     fig = plt.figure(figsize=(10,8))
     ax = fig.gca()
-    sns.lineplot(x=df['date'], y=df['ride_count'], ax=ax)
+    lineplot(x=df['date'], y=df['ride_count'], ax=ax)
     x = ax.lines[0].get_xydata()[:,0]
     y = ax.lines[0].get_xydata()[:,1]
     ax.fill_between(x,y, color="blue", alpha=0.6)
@@ -98,7 +99,7 @@ def generate_strava_report(osm_id: int, date_start: str, date_end: str):
     plt.savefig('../strava_plot.png')
     sums = df.groupby(['osm_reference_id']).sum().reset_index()
     with open('../report.html', 'w') as f:
-        f.write(df.to_html() + 
+        f.write(df.to_html() +
                 '<img src="strava_plot.png" alt="text">' +
                 sums.to_html())
 
@@ -127,4 +128,4 @@ if __name__ == '__main__':
                            custom_where="datum > DATE '2023-03-22'",
                            result_type='df').sdf
     
-    generate_strava_report(48578321, '2022-05-01', '2022-05-31')
+    #generate_strava_report(450098706, '2022-05-01', '2022-05-31', '../datasets/strava_daily_2022_may_aug.csv')
