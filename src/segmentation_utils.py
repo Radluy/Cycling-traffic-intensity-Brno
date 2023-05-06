@@ -4,7 +4,7 @@ from typing import Tuple, List
 from itertools import pairwise
 os.environ['USE_PYGEOS'] = '0'
 
-import geopandas as gpd
+import geopandas as gpd  # pylint: disable=wrong-import-position
 
 
 MIN_X = 0

@@ -7,6 +7,7 @@ import os
 from typing import Tuple, List
 os.environ['USE_PYGEOS'] = '0'
 
+# pylint: disable=wrong-import-position
 import geopandas as gpd
 import pandas as pd
 import pyrosm

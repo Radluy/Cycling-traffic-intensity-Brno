@@ -6,6 +6,7 @@ import os
 import warnings
 os.environ['USE_PYGEOS'] = '0'
 
+# pylint: disable=wrong-import-position
 import geopandas as gpd
 import numpy as np
 from shapely import geometry as shp
@@ -68,7 +69,7 @@ def _lines_overlap(line1: shp.LineString, line2: shp.LineString, round_digits: i
         bool: whether either line covers the other"""
     line1_coords = []
     line2_coords = []
-    # round according to round_digits param 
+    # round according to round_digits param
     # bigger roundup means the lines are more likely to meet, eliminates offset
     for point_i in range(2):
         line1_coords.append((round(line1.coords[point_i][0], round_digits),
@@ -157,7 +158,7 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
 
 if __name__ == '__main__':
     # example usage of algorithm on one segment of OSM basemap and BikeToWork dataset
-    import pandas as pd
+    import pandas as pd  # pylint: disable=wrong-import-position
     basemap = pd.read_pickle('basemap.pkl')
     segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
     basemap = assign_segments_to_dataset(basemap, segment_matrix, 'id')

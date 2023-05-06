@@ -1,10 +1,13 @@
+"""Example usage of the model update pipelines"""
 import pandas as pd
 
-from location_matching import *
+from location_matching import match_street_network_to_osm, update_street_network, \
+    match_points_to_osm, update_point_system
 from segmentation_utils import generate_segments, assign_segments_to_dataset
 
 
 def update_census_example():
+    """Step by step example of updating line-based CENSUS dataset mapping"""
     model = pd.read_pickle("basemap.pkl")
     segment_matrix = generate_segments((16.4855, 49.1538, 16.7550, 49.2507), 32)
     model = assign_segments_to_dataset(model, segment_matrix, 'id')
@@ -18,10 +21,10 @@ def update_census_example():
                                   segment_matrix, 'census_id')
 
     print(len(model[~model['census_id'].isna()]))
-    return
-    
+
 
 def update_counters_example():
+    """Step by step example of updating point-based COUNTERS dataset mapping"""
     model = pd.read_pickle("basemap.pkl")
     model = match_points_to_osm(model,
                                 '../datasets/shortened_counters.geojson',
@@ -34,7 +37,6 @@ def update_counters_example():
                                 'LocationId',
                                 'counters_id')
     print(model['counters_id'].unique())
-    return
 
 
 if __name__ == '__main__':

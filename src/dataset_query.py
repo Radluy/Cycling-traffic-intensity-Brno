@@ -12,6 +12,7 @@ cparser.read('../data_urls.conf')
 
 # ARCGIS api has request limit of 1000-2000 records per query, use python gis lib
 def download_dataset(base_url: str, savepath: str):
+    """Downloads full dataset from the arcgis featureLayer"""
     params = {'where': '1=1', 'outFields': '*', 'outSR': 4326, 'f': 'geojson'}
     response = requests.get(base_url, params=params)
     with open(savepath, 'w') as f:
@@ -28,9 +29,9 @@ def query_arcgis_layer(base_url: str, savepath: str | None = None, out_fields: s
         custom_where (str, optional): custom WHERE sql-like clause, defaults to '1=1'
         result_type (str, optional): type or format of result, defaults to 'geojson'"""
     layer = FeatureLayer(base_url)
-    response = layer.query(where=custom_where, 
-                           out_fields=out_fields, 
-                           outSR=4326, 
+    response = layer.query(where=custom_where,
+                           out_fields=out_fields,
+                           outSR=4326,
                            f=result_type)
     if savepath:
         with open(savepath, 'w') as f:
@@ -53,7 +54,7 @@ def get_census_data(id: int):
     gdf = query_arcgis_layer(cparser['urls']['census'],
                              result_type='df',
                              custom_where=f"id={id}").sdf
-    gdf = gdf[["prac_2018", "vik_2018", "prac_2020", 
+    gdf = gdf[["prac_2018", "vik_2018", "prac_2020",
                "vik_2020", "prac_2022", "vik_2022"]]
     return gdf
 
@@ -72,7 +73,7 @@ def get_counters_data(location_id: int, date_start: str, date_end: str):
 
 def get_strava_data(osm_id: int, date_start: str, date_end: str, csv_path: str) -> pd.DataFrame:
     """Query strava dataset from file as a dataframe based on OSM ID and time interval
-       datetime parameters in format 'YYYY-MM-DD', 
+       datetime parameters in format 'YYYY-MM-DD',
        dataset must be on daily granularity and contain the specified time frame"""
     df = pd.read_csv(csv_path)
     df['date'] = pd.to_datetime(df['date'])
@@ -107,16 +108,16 @@ def generate_strava_report(osm_id: int, date_start: str, date_end: str, csv_path
 
 if __name__ == '__main__':
     # download_dataset(cparser['urls']['counters'], 'datasets/testik.geojson')
-    """query_arcgis_layer(cparser['urls']['census'], 
-                       '../datasets/arcgis_bkom.geojson', 
+    """query_arcgis_layer(cparser['urls']['census'],
+                       '../datasets/arcgis_bkom.geojson',
                        out_fields='id')
-    
-    query_arcgis_layer(cparser['urls']['counters'], 
-                       '../datasets/arcgis_counters.geojson', 
+
+    query_arcgis_layer(cparser['urls']['counters'],
+                       '../datasets/arcgis_counters.geojson',
                        out_fields='LocationId')
-    
+
     query_arcgis_layer(cparser['urls']['biketowork'], 
-                       '../datasets/arcgis_biketowork.geojson', 
+                       '../datasets/arcgis_biketowork.geojson',
                        out_fields='GID_ROAD')"""
 
     # examples
@@ -127,5 +128,5 @@ if __name__ == '__main__':
     x = query_arcgis_layer(cparser['urls']['counters'],
                            custom_where="datum > DATE '2023-03-22'",
                            result_type='df').sdf
-    
+
     #generate_strava_report(450098706, '2022-05-01', '2022-05-31', '../datasets/strava_daily_2022_may_aug.csv')
