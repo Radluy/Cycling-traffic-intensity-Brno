@@ -5,8 +5,8 @@ import pandas as pd
 
 def eval_street_algorithm():
     """Calculate algorithm accuracy on the annotated samples"""
-    model = gpd.read_file('../full_model.geojson')
-    results = pd.read_csv('../algo_eval.csv', delimiter=';')
+    model = gpd.read_file('/../datasets/full_model.geojson')
+    results = pd.read_csv('../datasets/algo_eval.csv', delimiter=';')
 
     correct_matches_btw = 0
     correct_matches_cens = 0
@@ -21,9 +21,10 @@ def eval_street_algorithm():
             correct_matches_cens += 1
 
     percentage = round(correct_matches_btw/results.shape[0] * 100, 2)
-    print("BikeToWork matches: {}, [{}%]".format(correct_matches_btw, percentage))
+    print(f"BikeToWork matches: {correct_matches_btw}, [{percentage}%]")
+    # pylint: disable=no-member
     percentage = round(correct_matches_cens/results.shape[0] * 100, 2)
-    print("Census matches: {}, [{}%]".format(correct_matches_cens, percentage))
+    print(f"Census matches: {correct_matches_cens}, [{percentage}%]")
 
 
 if __name__ == '__main__':

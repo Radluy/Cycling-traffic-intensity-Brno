@@ -45,22 +45,21 @@ def lines_overlap(line1: shp.MultiLineString | shp.LineString,
     # case multiline : multiline
     if lines1 and lines2:
         return any(
-            [any([_lines_overlap(line, other_line, round_digits) for line in lines1])
-             for other_line in lines2]
-        )
+            any(_lines_overlap(line, other_line, round_digits) for line in lines1)
+            for other_line in lines2)
     # case multiline : line
     if lines1 and not lines2:
-        return any([_lines_overlap(line, line2, round_digits) for line in lines1])
+        return any(_lines_overlap(line, line2, round_digits) for line in lines1)
     # case line : multiline
     if lines2 and not lines1:
-        return any([_lines_overlap(line1, other_line, round_digits) for other_line in lines2])
+        return any(_lines_overlap(line1, other_line, round_digits) for other_line in lines2)
     # case line : line
     return _lines_overlap(line1, line2, round_digits)
 
 
 def _lines_overlap(line1: shp.LineString, line2: shp.LineString, round_digits: int) -> bool:
     """Private helper method for rounding and comparing partial LineString because
-    Shapely doesn't compute overlap for MultiLineStrings. 
+    Shapely doesn't compute overlap for MultiLineStrings.
     Args:
         line1 (shp.linestring): line checked for covering second line
         line2 (shp.linestring): line checked for being covered by first line

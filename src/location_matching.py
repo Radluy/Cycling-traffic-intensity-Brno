@@ -1,6 +1,6 @@
 """
-Module loads basemap from OpenStreetMap network and matches other 
-networks and locations to it. The final model is a map of IDs to all 
+Module loads basemap from OpenStreetMap network and matches other
+networks and locations to it. The final model is a map of IDs to all
 corresponding dataset from the Brno Cycling traffic intensity study
 """
 import os
@@ -58,6 +58,7 @@ def match_points_to_osm(basemap: gpd.GeoDataFrame,
     # load distances between streets and points
     distances_df = pd.DataFrame()
     for i, item in enumerate(counters_geometries):
+        # pylint: disable=cell-var-from-loop
         distances_df[f'distance{i}'] = basemap['geometry'].apply(lambda x: x.distance(item))
 
     # create map of [osm street id : point id] by minimal distance between them
@@ -71,16 +72,17 @@ def match_points_to_osm(basemap: gpd.GeoDataFrame,
     return basemap
 
 
+# pylint: disable=too-many-arguments
 def match_street_network_to_osm(basemap: gpd.GeoDataFrame,
                                 filepath: str,
                                 id_column: str,
                                 segment_matrix: List[Tuple[float, float, float, float]],
                                 new_id_column: str | None = None,
                                 segment_ids: List[int] | None = None) -> gpd.GeoDataFrame:
-    """Matches streets from any network to osm basemap, 
+    """Matches streets from any network to osm basemap,
     using algorithm based on street bounding box overlap and angle.
     Args:
-        basemap (gpd.GeoDataFrame): basemap dataframe from OSM, needs to have geometry 
+        basemap (gpd.GeoDataFrame): basemap dataframe from OSM, needs to have geometry
         filepath (str): path to dataset with different street network basemap, must have geometry
         id_column (str): exact name of column with unique IDs of the dataset
         new_id_column (str | None): optional rename of the ID column
@@ -128,13 +130,13 @@ def update_street_network(model: gpd.GeoDataFrame,
                           model_id_column: str) -> gpd.GeoDataFrame:
     """Updates ids from matched foreign network with new version of the dataset
     Args:
-        model (gpd.GeoDataFrame): basemap from OSM with already assigned segments 
+        model (gpd.GeoDataFrame): basemap from OSM with already assigned segments
         and column with ids matched from foregin network
         filepath (str): path to dataset with different street network basemap, must have geometry
         original_id_column (str): exact name of column with unique IDs of the dataset
-        segment_matrix (List[Tuple[float, float, float, float]]): list of segments, must be same 
+        segment_matrix (List[Tuple[float, float, float, float]]): list of segments, must be same
         as segments assigned to model
-        model_id_column (str): name of column with datasets ids in model 
+        model_id_column (str): name of column with datasets ids in model
         (could be different after rename)
     Returns:
         gpd.GeoDataFrame: model with updated column with foreign network streets ids"""
@@ -172,10 +174,10 @@ def update_point_system(model: gpd.GeoDataFrame,
                         model_id_column: str) -> gpd.GeoDataFrame:
     """Update ids in model from newer version of point system dataset
     Args:
-        model (gpd.GeoDataFrame): basemap from OSM with existing column with point ids 
+        model (gpd.GeoDataFrame): basemap from OSM with existing column with point ids
         filepath (str): path to any points dataset with coordinates
         original_id_column (str): exact name of column with unique IDs of the dataset
-        model_id_column (str): name of column with datasets ids in model 
+        model_id_column (str): name of column with datasets ids in model
     Returns:
         gpd.GeoDataFrame: model with updated column with point system ids
     """
@@ -191,6 +193,7 @@ def update_point_system(model: gpd.GeoDataFrame,
     # load distances between streets and points
     distances_df = pd.DataFrame()
     for i, item in enumerate(counters_geometries):
+        # pylint: disable=cell-var-from-loop
         distances_df[f'distance{i}'] = model['geometry'].apply(lambda x: x.distance(item))
 
     # create map of {osm street id : point id} by minimal distance between them
@@ -221,12 +224,12 @@ if __name__ == '__main__':
     print(model.head())
 
     # match biketowork street network to basemap
-    segment_matrix = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
-    model = assign_segments_to_dataset(model, segment_matrix, 'id')
+    segments = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
+    model = assign_segments_to_dataset(model, segments, 'id')
     model = match_street_network_to_osm(model,
                                         "../datasets/do_prace_na_kole.geojson",
                                         "GID_ROAD",
-                                        segment_matrix,
+                                        segments,
                                         'biketowork_id')
     print(model.head())
 
@@ -234,7 +237,7 @@ if __name__ == '__main__':
     model = match_street_network_to_osm(model,
                                         "../datasets/bkom_scitanie.geojson",
                                         "id",
-                                        segment_matrix,
+                                        segments,
                                         'city_census_id')
     print(model.head())
 
