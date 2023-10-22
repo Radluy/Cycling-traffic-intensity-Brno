@@ -17,12 +17,12 @@ from geometry_utils import match_lines_by_bbox_overlap
 from segmentation_utils import generate_segments, assign_segments_to_dataset
 
 
-DEFAULT_BBOX = (16.4855, 49.1538, 16.7550, 49.2507)
+DEFAULT_BBOX = [16.4855, 49.1538, 16.7550, 49.2507]
 DEFAULT_NUM_SEGMENTS = 32
 
 
 def load_osm_basemap(filepath: str,
-                     bounding_box: Tuple[float, float, float, float] | None = None) \
+                     bounding_box: list[float, float, float, float] | None = None) \
                      -> gpd.GeoDataFrame:
     """Read OpenStreetMap .osm.pbf file and create a street network dataset for Brno
     Args:
@@ -217,11 +217,11 @@ if __name__ == '__main__':
     else:
         model = pd.read_pickle("../datasets/basemap.pkl")
     # match counter unit locations to basemap
-    model = match_points_to_osm(model,
-                                '../datasets/cyklodetektory.geojson',
-                                'LocationId',
-                                'counters_id')
-    print(model.head())
+    #model = match_points_to_osm(model,
+    #                            '../datasets/cyklodetektory.geojson',
+    #                            'LocationId',
+    #                            'counters_id')
+    #print(model.head())
 
     # match biketowork street network to basemap
     segments = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
@@ -234,11 +234,11 @@ if __name__ == '__main__':
     print(model.head())
 
     # match bkom street network to basemap
-    model = match_street_network_to_osm(model,
-                                        "../datasets/bkom_scitanie.geojson",
-                                        "id",
-                                        segments,
-                                        'city_census_id')
-    print(model.head())
+    #model = match_street_network_to_osm(model,
+    #                                    "../datasets/bkom_scitanie.geojson",
+    #                                    "id",
+    #                                    segments,
+    #                                    'city_census_id')
+    #print(model.head())
 
     gpd.GeoDataFrame(model).to_file('../datasets/full_model.geojson', driver="GeoJSON")

@@ -80,6 +80,39 @@ def _lines_overlap(line1: shp.LineString, line2: shp.LineString, round_digits: i
     return line1.overlaps(line2) or line2.overlaps(line1)
 
 
+def ellipsoid_buffer(line: shp.MultiLineString, round_digits: int) -> shp.Polygon:
+    """Create ellipsoid-shaped bounding buffer over a MultiLineString.
+    Args:
+        line (shp.MultiLineString): original line to calculate its buffer
+        round_digits (int): number of digits to round the coordinates - helps with divergency
+    Returns:
+        shp.Polygon: calculated ellipsoid-like buffer for the input line
+    """
+    polygon = shp.box(*[round(coord, round_digits) for coord in line.bounds])
+    center = polygon.centroid
+    unit_circle = center.buffer(1)
+    x_length = polygon.bounds[2] - polygon.bounds[0]  # max_x - min_x
+    y_length = polygon.bounds[3] - polygon.bounds[1]  # max_y - min_y
+    scaled_ellipse = shp.affinity.scale(unit_circle, x_length, y_length)
+
+    x_axis = shp.LineString([[0, 0], [1, 0]])
+    angle = angle_between(line, x_axis)
+    rotated_ellipse = shp.affinity.rotate(scaled_ellipse, angle)
+
+    return rotated_ellipse
+
+
+def box_buffer(line: shp.MultiLineString, round_digits: int) -> shp.Polygon:
+    """Create box-shaped bounding buffer over a MultiLineString.
+    Args:
+        line (shp.MultiLineString): original line to calculate its buffer
+        round_digits (int): number of digits to round the coordinates - helps with divergency
+    Returns:
+        shp.Polygon: calculated box buffer for the input line
+    """
+    return shp.box(*[round(coord, round_digits) for coord in line.bounds])
+
+
 def angle_between(line_1: shp.MultiLineString, line_2: shp.MultiLineString) -> float:
     """Calculates angle in degrees between two 2D lines
     taken from:
@@ -138,16 +171,16 @@ def match_lines_by_bbox_overlap(line: shp.MultiLineString,
         # iterate all lines from other set and save best match
         for index, other_line in enumerate(other_lines):
             angle = angle_between(line, other_line)
-            polygon = shp.box(*[round(coord, round_digits) for coord in line.bounds])
-            other_polygon = shp.box(*[round(coord, round_digits) for coord in other_line.bounds])
+            polygon = ellipsoid_buffer(line, round_digits)
+            other_polygon = ellipsoid_buffer(other_line, round_digits)
             try:  # calculate overlap of bounding boxes of streets in <0-1> interval
-                bbox_overlap = polygon.intersection(other_polygon).area /         \
+                overlap = polygon.intersection(other_polygon).area /         \
                     polygon.union(other_polygon).area
             except ZeroDivisionError:  # union can be empty, skip the street
                 continue
             # progressively bigger allowed angle and highest overlap
-            if angle < max_accepted_angle and bbox_overlap > best_match[0]:
-                best_match = (bbox_overlap, angle, index)
+            if angle < max_accepted_angle and overlap > best_match[0]:
+                best_match = (overlap, angle, index)
         # if last iteration didn't succeed, return no match
         if max_accepted_angle >= 45 and best_match == (0, 0, 0):
             return None
