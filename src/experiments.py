@@ -5,7 +5,7 @@ import pandas as pd
 
 def eval_street_algorithm():
     """Calculate algorithm accuracy on the annotated samples"""
-    model = gpd.read_file('/../datasets/full_model.geojson')
+    model = gpd.read_file('../datasets/full_model_ellipsoid.geojson')
     results = pd.read_csv('../datasets/algo_eval.csv', delimiter=';')
 
     correct_matches_btw = 0

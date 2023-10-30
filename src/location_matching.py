@@ -199,7 +199,7 @@ def update_point_system(model: gpd.GeoDataFrame,
     # create map of {osm street id : point id} by minimal distance between them
     point_way_map = {}
     for i in range(len(new_points)):
-        min_dist = model[distances_df[f"distance{i}"]==distances_df[f"distance{i}"].min()]
+        min_dist = model[distances_df[f"distance{i}"] == distances_df[f"distance{i}"].min()]
         point_way_map[min_dist['id'].unique()[0]] = counter_ids[i]
 
     # assign newly found point matches
@@ -217,11 +217,11 @@ if __name__ == '__main__':
     else:
         model = pd.read_pickle("../datasets/basemap.pkl")
     # match counter unit locations to basemap
-    #model = match_points_to_osm(model,
-    #                            '../datasets/cyklodetektory.geojson',
-    #                            'LocationId',
-    #                            'counters_id')
-    #print(model.head())
+    model = match_points_to_osm(model,
+                                '../datasets/cyklodetektory.geojson',
+                                'LocationId',
+                                'counters_id')
+    print(model.head())
 
     # match biketowork street network to basemap
     segments = generate_segments(DEFAULT_BBOX, DEFAULT_NUM_SEGMENTS)
@@ -234,11 +234,11 @@ if __name__ == '__main__':
     print(model.head())
 
     # match bkom street network to basemap
-    #model = match_street_network_to_osm(model,
-    #                                    "../datasets/bkom_scitanie.geojson",
-    #                                    "id",
-    #                                    segments,
-    #                                    'city_census_id')
-    #print(model.head())
+    model = match_street_network_to_osm(model,
+                                        "../datasets/bkom_scitanie.geojson",
+                                        "id",
+                                        segments,
+                                        'city_census_id')
+    print(model.head())
 
-    gpd.GeoDataFrame(model).to_file('../datasets/full_model.geojson', driver="GeoJSON")
+    gpd.GeoDataFrame(model).to_file('../datasets/full_model_ellipsoid.geojson', driver="GeoJSON")

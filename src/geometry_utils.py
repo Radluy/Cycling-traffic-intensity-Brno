@@ -9,7 +9,7 @@ os.environ['USE_PYGEOS'] = '0'
 # pylint: disable=wrong-import-position
 import geopandas as gpd
 import numpy as np
-from shapely import geometry as shp
+import shapely as shp
 
 from segmentation_utils import generate_segments, assign_segments_to_dataset
 
