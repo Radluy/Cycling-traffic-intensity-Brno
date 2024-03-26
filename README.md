@@ -3,8 +3,8 @@
 This project was created as a Master's thesis at the Faculty of Information Technology, Brno University of Technology. It introduces an innovative approach to integrating basemap datasets defining street networks. The algorithm is then used to unify multiple datasets regarding cycling numbers in Brno and the resulting model is visualized in a publicly available dashboard.
 
 Datasets can be found at: <https://data.brno.cz> \
-Dashboard can be found at: [dashboard](https://fitvut-xelias18.maps.arcgis.com/apps/dashboards/30441a5a3b6f497880474e5e70ccd3e7) \
-(Note that there's currently an ArcGIS bug, where it might prompt you to log in. Closing this popup a few times will resolve this issue, if not, it's possible to register an account for free.)
+Dashboard can be found at: [dashboard](https://fitvut-xelias18.maps.arcgis.com/apps/dashboards/30441a5a3b6f497880474e5e70ccd3e7) (Note: currently not running.)\
+Full text of the paper can be found at: [link](https://www.vut.cz/en/students/final-thesis/detail/141152)
 
 This thesis was also submitted to the [EXCEL@FIT 2023](https://excel.fit.vutbr.cz/) conference, where it was awarded by an expert panel, as well as by industry partners. 
 Submission: [poster](https://excel.fit.vutbr.cz/submissions/2023/030/30_poster.pdf), [abstract](https://excel.fit.vutbr.cz/submissions/2023/030/30.pdf)
